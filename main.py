@@ -1,7 +1,6 @@
-import os
 import random
 from telegram import Update, ReplyKeyboardMarkup
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters
 
 BOT_TOKEN = "8115312798:AAFEBMl7KrxmAynmT9A1LqNcS17Ns6pa7P4"
 
@@ -39,68 +38,74 @@ levels = {
         "Сиди голым(ой), пока партнёр тебе шепчет неприличные приказы.",
         "Дрочи партнёру, пока он/она говорит тебе гадости.",
         "Оральное удовольствие — 2 минуты, по таймеру, потом остановка.",
-        "Попробуй два устройства одновременно: вибро-яйцо + орка.",
+        "Попробуй два устройства одновременно: вибро-яйцо + Orca.",
         "Надень повязку и привяжи её к кровати, пока тебе будут читать новый фант."
     ]
 }
 
 current_level = "Лайт"
 
+def get_keyboard():
+    return ReplyKeyboardMarkup(
+        [
+            ["/next", "/setlevel Лайт"],
+            ["/setlevel Средний", "/setlevel Жёсткий"],
+            ["ℹ️ Инструкция"]
+        ],
+        resize_keyboard=True
+    )
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [
-        ["/next", "/setlevel Лайт"],
-        ["/setlevel Средний", "/setlevel Жёсткий"],
-        ["ℹ️ Инструкция"]
-    ]
-    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
     await update.message.reply_text(
-        f"Привет! Я бот с фантами для постельных игр. Текущий уровень: {current_level}\nНапиши /next — и я пришлю фант!",
-        reply_markup=reply_markup
+        f"Привет! Я бот с фантами для постельных игр.\nТекущий уровень: {current_level}\n"
+        "Напиши /next — и я пришлю тебе фант!",
+        reply_markup=get_keyboard()
     )
 
 async def next_fant(update: Update, context: ContextTypes.DEFAULT_TYPE):
     fan_list = levels.get(current_level, [])
     if not fan_list:
         await update.message.reply_text("Фанты для текущего уровня не найдены.")
-    else:
-        await update.message.reply_text(random.choice(fan_list))
+        return
+    fan = random.choice(fan_list)
+    await update.message.reply_text(fan)
 
 async def set_level(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global current_level
-    if context.args:
-        level = " ".join(context.args)
-        if level in levels:
-            current_level = level
-            await update.message.reply_text(f"Уровень установлен: {current_level}")
-        else:
-            await update.message.reply_text("Такой уровень не найден. Доступны: " + ", ".join(levels.keys()))
-    else:
-        await update.message.reply_text("Укажи уровень после команды. Пример: /setlevel Средний")
+    if not context.args:
+        await update.message.reply_text("Укажи уровень после команды. Например: /setlevel Средний")
+        return
+    level = " ".join(context.args)
+    if level not in levels:
+        await update.message.reply_text(f"Неверный уровень. Доступные: {', '.join(levels.keys())}")
+        return
+    current_level = level
+    await update.message.reply_text(f"Уровень успешно установлен: {current_level}")
 
 async def add_fant(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if context.args:
-        new_fant = " ".join(context.args)
-        levels[current_level].append(new_fant)
-        await update.message.reply_text(f"Фант добавлен в уровень {current_level}.")
-    else:
-        await update.message.reply_text("Напиши фант после команды. Пример: /addfant Лизнуть шею 3 раза")
+    if not context.args:
+        await update.message.reply_text("Напиши текст фанты после команды. Пример: /addfant Поцелуй партнёра в шею")
+        return
+    new_fant = " ".join(context.args)
+    levels[current_level].append(new_fant)
+    await update.message.reply_text(f"Фанта добавлена в уровень {current_level}.")
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     help_text = (
         "📜 Команды бота:\n"
-        "/start — запустить бота и меню\n"
-        "/next — получить случайный фант из текущего уровня\n"
-        "/setlevel <уровень> — установить уровень (Лайт, Средний, Жёсткий)\n"
-        "/addfant <текст фанты> — добавить свою фанту в текущий уровень\n"
-        "ℹ️ Инструкция — показать это меню"
+        "/start — Запустить бота и показать меню\n"
+        "/next — Получить случайный фант из текущего уровня\n"
+        "/setlevel <уровень> — Установить уровень (Лайт, Средний, Жёсткий)\n"
+        "/addfant <текст фанты> — Добавить свою фанту в текущий уровень\n"
+        "ℹ️ Инструкция — Показать это сообщение"
     )
     await update.message.reply_text(help_text)
 
-async def instruction_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def instruction_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.text == "ℹ️ Инструкция":
         await help_command(update, context)
 
-if __name__ == '__main__':
+def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
@@ -108,11 +113,11 @@ if __name__ == '__main__':
     app.add_handler(CommandHandler("setlevel", set_level))
     app.add_handler(CommandHandler("addfant", add_fant))
     app.add_handler(CommandHandler("help", help_command))
-    app.add_handler(CommandHandler("instruction", help_command))
-    app.add_handler(CommandHandler("Инструкция", help_command))
 
-    from telegram.ext import MessageHandler, filters
-    app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), instruction_button))
+    app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), instruction_handler))
 
     print("Бот запущен")
     app.run_polling()
+
+if __name__ == "__main__":
+    main()
