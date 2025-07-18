@@ -1,6 +1,12 @@
 import random
 from telegram import Update, ReplyKeyboardMarkup
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    ContextTypes,
+    MessageHandler,
+    filters,
+)
 
 BOT_TOKEN = "8115312798:AAFEBMl7KrxmAynmT9A1LqNcS17Ns6pa7P4"
 
@@ -114,7 +120,8 @@ def main():
     app.add_handler(CommandHandler("addfant", add_fant))
     app.add_handler(CommandHandler("help", help_command))
 
-    app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), instruction_handler))
+    # Ловим только нажатие кнопки "ℹ️ Инструкция"
+    app.add_handler(MessageHandler(filters.Regex("^ℹ️ Инструкция$"), instruction_handler))
 
     print("Бот запущен")
     app.run_polling()
